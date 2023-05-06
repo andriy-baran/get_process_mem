@@ -3,35 +3,31 @@ require 'bigdecimal'
 require 'get_process_mem/os_detector'
 require 'get_process_mem/bytes'
 
+if GetProcessMem::OsDetector.runs_on_darwin?
+  begin
+    require 'get_process_mem/os/darwin'
+  rescue LoadError => e
+    message = "Please add `ffi` to your Gemfile for darwin (macos) machines\n"
+    message << e.message
+    raise e, message
+  end
+end
+
+if GetProcessMem::OsDetector.runs_on_windows?
+  begin
+    require 'sys/proctable'
+  rescue LoadError => e
+    message = "Please add `sys-proctable` to your Gemfile for windows machines\n"
+    message << e.message
+    raise e, message
+  end
+end
+
 # Cribbed from Unicorn Worker Killer, thanks!
 class GetProcessMem
+  include Sys if OsDetector.runs_on_windows?
   ROUND_UP   = BigDecimal("0.5")
   attr_reader :pid
-
-  RUNS_ON_WINDOWS = OsDetector.runs_on_windows?
-
-  if RUNS_ON_WINDOWS
-    begin
-      require 'sys/proctable'
-    rescue LoadError => e
-      message = "Please add `sys-proctable` to your Gemfile for windows machines\n"
-      message << e.message
-      raise e, message
-    end
-    include Sys
-  end
-
-  RUNS_ON_DARWIN = OsDetector.runs_on_darwin?
-
-  if RUNS_ON_DARWIN
-    begin
-      require 'get_process_mem/os/darwin'
-    rescue LoadError => e
-      message = "Please add `ffi` to your Gemfile for darwin (macos) machines\n"
-      message << e.message
-      raise e, message
-    end
-  end
 
   def initialize(pid = Process.pid)
     @status_file  = Pathname.new "/proc/#{pid}/status"
@@ -46,7 +42,7 @@ class GetProcessMem
 
   def bytes
     memory =   linux_status_memory if linux?
-    memory ||= darwin_memory if RUNS_ON_DARWIN
+    memory ||= darwin_memory if OsDetector.runs_on_darwin?
     memory ||= ps_memory
   end
 
