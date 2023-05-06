@@ -37,7 +37,7 @@ class GetProcessMem
 
   if RUNS_ON_DARWIN
     begin
-      require 'get_process_mem/darwin'
+      require 'get_process_mem/os/darwin'
     rescue LoadError => e
       message = "Please add `ffi` to your Gemfile for darwin (macos) machines\n"
       message << e.message
@@ -119,7 +119,7 @@ class GetProcessMem
   end
 
   def darwin_memory
-    Darwin.resident_size(pid)
+    Os::Darwin.resident_size(pid)
   rescue Errno::EPERM
     nil
   end
