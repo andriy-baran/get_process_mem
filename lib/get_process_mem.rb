@@ -5,17 +5,7 @@ require 'get_process_mem/bytes'
 
 # Cribbed from Unicorn Worker Killer, thanks!
 class GetProcessMem
-  private_class_method def self.number_to_bigdecimal(value)
-    BigDecimal(value)
-  end
-
-  private def number_to_bigdecimal(value)
-    self.class.send(:number_to_bigdecimal, value)
-  end
-
-
-
-  ROUND_UP   = number_to_bigdecimal "0.5"
+  ROUND_UP   = BigDecimal("0.5")
   attr_reader :pid
 
   RUNS_ON_WINDOWS = OsDetector.runs_on_windows?
@@ -94,7 +84,7 @@ class GetProcessMem
     return if lines.empty?
     lines.reduce(0) do |sum, line|
       line.match(/(?<value>(\d*\.{0,1}\d+))\s+(?<unit>\w\w)/) do |m|
-        value = number_to_bigdecimal(m[:value]) + ROUND_UP
+        value = BigDecimal(m[:value]) + ROUND_UP
         unit  = m[:unit].downcase
         sum  += Bytes::CONVERSION[unit] * value
       end
@@ -108,8 +98,7 @@ class GetProcessMem
   # in low memory situations
   def ps_memory
     if RUNS_ON_WINDOWS
-      size = ProcTable.ps(pid: pid).working_set_size
-      number_to_bigdecimal(size)
+      ProcTable.ps(pid: pid).working_set_size.to_d
     else
       mem = `ps -o rss= -p #{pid}`
       Bytes::KB_TO_BYTE * BigDecimal(mem == "" ? 0 : mem)
