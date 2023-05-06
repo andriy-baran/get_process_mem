@@ -1,5 +1,6 @@
 require 'pathname'
 require 'bigdecimal'
+require 'get_process_mem/os_detector'
 
 # Cribbed from Unicorn Worker Killer, thanks!
 class GetProcessMem
@@ -18,7 +19,7 @@ class GetProcessMem
   ROUND_UP   = number_to_bigdecimal "0.5"
   attr_reader :pid
 
-  RUNS_ON_WINDOWS = Gem.win_platform?
+  RUNS_ON_WINDOWS = OsDetector.runs_on_windows?
 
   if RUNS_ON_WINDOWS
     begin
@@ -31,9 +32,7 @@ class GetProcessMem
     include Sys
   end
 
-  RUNS_ON_DARWIN =  Gem.platforms.detect do |p|
-                      p.is_a?(Gem::Platform) && p.os == 'darwin'
-                    end
+  RUNS_ON_DARWIN = OsDetector.runs_on_darwin?
 
   if RUNS_ON_DARWIN
     begin
