@@ -1,6 +1,7 @@
 require 'pathname'
 require 'bigdecimal'
 require 'get_process_mem/os_detector'
+require 'get_process_mem/bytes'
 
 # Cribbed from Unicorn Worker Killer, thanks!
 class GetProcessMem
@@ -12,10 +13,8 @@ class GetProcessMem
     self.class.send(:number_to_bigdecimal, value)
   end
 
-  KB_TO_BYTE = number_to_bigdecimal 1024          # 2**10   = 1024
-  MB_TO_BYTE = number_to_bigdecimal 1_048_576     # 1024**2 = 1_048_576
-  GB_TO_BYTE = number_to_bigdecimal 1_073_741_824 # 1024**3 = 1_073_741_824
-  CONVERSION = { "kb" => KB_TO_BYTE, "mb" => MB_TO_BYTE, "gb" => GB_TO_BYTE }
+
+
   ROUND_UP   = number_to_bigdecimal "0.5"
   attr_reader :pid
 
@@ -62,20 +61,20 @@ class GetProcessMem
   end
 
   def kb(b = bytes)
-    (b/KB_TO_BYTE).to_f
+    Bytes.new(b).kb
   end
 
   def mb(b = bytes)
-    (b/MB_TO_BYTE).to_f
+    Bytes.new(b).mb
   end
 
   def gb(b = bytes)
-    (b/GB_TO_BYTE).to_f
+    Bytes.new(b).gb
   end
 
   def inspect
-    b = bytes
-    "#<#{self.class}:0x%08x @mb=#{ mb b } @gb=#{ gb b } @kb=#{ kb b } @bytes=#{b}>" % (object_id * 2)
+    b = Bytes.new(bytes)
+    "#<#{self.class}:0x%08x @mb=#{ b.mb } @gb=#{ b.gb } @kb=#{ b.kb } @bytes=#{b.b}>" % (object_id * 2)
   end
 
   # linux stores memory info in a file "/proc/#{pid}/status"
@@ -84,7 +83,7 @@ class GetProcessMem
     line = file.each_line.detect {|line| line.start_with? 'VmRSS'.freeze }
     return unless line
     return unless (_name, value, unit = line.split(nil)).length == 3
-    CONVERSION[unit.downcase!] * value.to_i
+    Bytes::CONVERSION[unit.downcase!] * value.to_i
   rescue Errno::EACCES, Errno::ENOENT
     0
   end
@@ -97,7 +96,7 @@ class GetProcessMem
       line.match(/(?<value>(\d*\.{0,1}\d+))\s+(?<unit>\w\w)/) do |m|
         value = number_to_bigdecimal(m[:value]) + ROUND_UP
         unit  = m[:unit].downcase
-        sum  += CONVERSION[unit] * value
+        sum  += Bytes::CONVERSION[unit] * value
       end
       sum
     end
@@ -113,7 +112,7 @@ class GetProcessMem
       number_to_bigdecimal(size)
     else
       mem = `ps -o rss= -p #{pid}`
-      KB_TO_BYTE * number_to_bigdecimal(mem == "" ? 0 : mem)
+      Bytes::KB_TO_BYTE * BigDecimal(mem == "" ? 0 : mem)
     end
   end
 
