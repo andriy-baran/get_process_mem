@@ -43,21 +43,36 @@ class GetProcessMem
 
       PROC_PIDTASKINFO = 4 #from sys/proc_info.h
 
-      class << self
-        def resident_size(pid)
-          get_proc_pidinfo(pid)[:pti_resident_size]
-        end
+      attr_reader :pid
 
-        private
+      def initialize(pid)
+        @pid = pid
+      end
 
-        def get_proc_pidinfo(pid)
-          data = TaskInfo.new
-          result = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, data, TaskInfo.size)
-          if result == TaskInfo.size
-            data
-          else
-            raise SystemCallError.new("proc_pidinfo returned #{result}", FFI.errno);
-          end
+      def memory
+        resident_size(pid)
+      rescue Errno::EPERM
+        nil
+      end
+
+      def ps_memory
+        mem = `ps -o rss= -p #{pid}`
+        Bytes::KB_TO_BYTE * BigDecimal(mem == "" ? 0 : mem)
+      end
+
+      def resident_size(pid)
+        get_proc_pidinfo(pid)[:pti_resident_size]
+      end
+
+      private
+
+      def get_proc_pidinfo(pid)
+        data = TaskInfo.new
+        result = proc_pidinfo(pid, PROC_PIDTASKINFO, 0, data, TaskInfo.size)
+        if result == TaskInfo.size
+          data
+        else
+          raise SystemCallError.new("proc_pidinfo returned #{result}", FFI.errno);
         end
       end
     end
